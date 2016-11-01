@@ -1,7 +1,5 @@
 package com.itv.techtest.shoppingcart;
 
-
-import com.itv.techtest.price.rule.PricingRule;
 import com.itv.techtest.item.LineItem;
 
 /**
@@ -10,12 +8,13 @@ import com.itv.techtest.item.LineItem;
 public class ShoppingCartItem {
 
   private LineItem lineItem;
-  private int numberOfItems;
+  private int quantity;
 
-  public ShoppingCartItem(LineItem lineItem, int numberOfItems){
+  public ShoppingCartItem(LineItem lineItem, int quantity){
     this.lineItem = lineItem;
-    this.numberOfItems = numberOfItems;
-  };
+    this.quantity = quantity;
+  }
+
   public LineItem getLineItem() {
     return lineItem;
   }
@@ -24,12 +23,12 @@ public class ShoppingCartItem {
     this.lineItem = lineItem;
   }
 
-  public int getNumberOfItems() {
-    return numberOfItems;
+  public int getQuantity() {
+    return quantity;
   }
 
-  public void setNumberOfItems(int numberOfItems) {
-    this.numberOfItems = numberOfItems;
+  public void setQuantity(int quantity) {
+    this.quantity = quantity;
   }
 
 }

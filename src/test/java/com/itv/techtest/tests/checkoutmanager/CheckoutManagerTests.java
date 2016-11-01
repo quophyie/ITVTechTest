@@ -1,5 +1,8 @@
 package com.itv.techtest.tests.checkoutmanager;
 
+import com.itv.techtest.receipt.Receipt;
+import com.itv.techtest.receipt.ReceiptManager;
+import com.itv.techtest.receipt.ReceiptManagerImpl;
 import com.itv.techtest.shoppingcart.ShoppingCart;
 import com.itv.techtest.shoppingcart.ShoppingCartImpl;
 import com.itv.techtest.checkoutmanager.CheckoutManager;
@@ -8,7 +11,7 @@ import com.itv.techtest.item.LineItem;
 import com.itv.techtest.price.manager.PriceManager;
 import com.itv.techtest.price.manager.PriceManagerImpl;
 import com.itv.techtest.price.result.PriceCalculationResult;
-import com.itv.techtest.price.rule.MultiPricePricingByUnit;
+import com.itv.techtest.price.rule.MultiPriceByBundlePriceUnitRule;
 import com.itv.techtest.price.rule.PricingRule;
 import org.junit.Before;
 import org.junit.Test;
@@ -29,14 +32,16 @@ public class CheckoutManagerTests {
   private CheckoutManager checkoutManager;
   private ShoppingCart shoppingCart;
   private PriceManager priceManager;
+  private ReceiptManager receiptManager;
   private Set<String> skus;
 
-  LineItem lineItem;
+  private LineItem lineItem;
   @Before
   public void setup(){
+    receiptManager = new ReceiptManagerImpl();
     priceManager = new PriceManagerImpl();
     shoppingCart = new ShoppingCartImpl();
-    checkoutManager = new CheckoutManagerImpl(priceManager);
+    checkoutManager = new CheckoutManagerImpl(priceManager, receiptManager);
 
     lineItem = new LineItem("A", 50, "Some A Item");
     shoppingCart.addItem(lineItem);
@@ -51,7 +56,7 @@ public class CheckoutManagerTests {
   public void givenAShoppingCartWithMultiPriceRuleReturnListOfPriceCalculationResultWithSingleItem() {
 
 
-    PricingRule multipriceRule = new MultiPricePricingByUnit(3, 130, skus, "3 for 130");
+    PricingRule multipriceRule = new MultiPriceByBundlePriceUnitRule(3, 130, skus, "3 for 130");
     List<PriceCalculationResult> results = checkoutManager.checkout(shoppingCart, Arrays.asList(multipriceRule));
     assertEquals(1, results.size());
 
@@ -60,7 +65,7 @@ public class CheckoutManagerTests {
   @Test
   public void givenAShoppingCartContaining3ItemsWithMultiPriceRuleReturnListOfPriceCalculationResultWithSingleItemWherePricingDiscountRuleHasBeenAppliedTo3Items() {
 
-    PricingRule multipriceRule = new MultiPricePricingByUnit(3, 130, skus, "3 for 130");
+    PricingRule multipriceRule = new MultiPriceByBundlePriceUnitRule(3, 130, skus, "3 for 130");
 
     List<PriceCalculationResult> results = checkoutManager.checkout(shoppingCart, Arrays.asList(multipriceRule));
     PriceCalculationResult priceCalculationResult = results.get(0);
@@ -74,7 +79,7 @@ public class CheckoutManagerTests {
 
   @Test
   public void givenAShoppingCartContaining3ItemsWithMultiPriceRuleReturnListOfPriceCalculationResultWithSingleItemWhereDiscountHasBeenAppliedTo3Items2ItemsWithoutDiscounts() {
-    PricingRule multipriceRule = new MultiPricePricingByUnit(3, 130, skus, "3 for 130");
+    PricingRule multipriceRule = new MultiPriceByBundlePriceUnitRule(3, 130, skus, "3 for 130");
     shoppingCart.addItem(lineItem);
     shoppingCart.addItem(lineItem);
 
@@ -97,7 +102,6 @@ public class CheckoutManagerTests {
     assertEquals(150.0, priceCalculationResult.getTotalOfFullPriceItems().doubleValue());
     assertEquals(0, priceCalculationResult.getNumberOfItemsDiscounted());
     assertEquals(3, priceCalculationResult.getNumberOfItemsAtFullPrice());
-
   }
 
   @Test
@@ -111,11 +115,11 @@ public class CheckoutManagerTests {
     shoppingCart.addItem(lineItem);
     shoppingCart.addItem(lineItem);
 
-    PricingRule skuAMultipriceRule = new MultiPricePricingByUnit(3, 130, skus, "3 for 130");
+    PricingRule skuAMultipriceRule = new MultiPriceByBundlePriceUnitRule(3, 130, skus, "3 for 130");
 
     HashSet<String> skuBMultipriceRuleSKUs = new HashSet<>();
     skuBMultipriceRuleSKUs.add(lineItemWithSKUB.getSku());
-    PricingRule skuBMultipriceRule = new MultiPricePricingByUnit(2, 45, skuBMultipriceRuleSKUs , "2 for 45");
+    PricingRule skuBMultipriceRule = new MultiPriceByBundlePriceUnitRule(2, 45, skuBMultipriceRuleSKUs , "2 for 45");
 
     List<PriceCalculationResult> results = checkoutManager.checkout(shoppingCart, Arrays.asList(skuAMultipriceRule, skuBMultipriceRule));
     assertEquals(2, results.size());
@@ -134,6 +138,31 @@ public class CheckoutManagerTests {
     assertEquals(2, priceCalculationResultSkuB.getNumberOfItemsDiscounted());
     assertEquals(1, priceCalculationResultSkuB.getNumberOfItemsAtFullPrice());
 
+  }
+
+  @Test
+  public void givenAShoppingCartShouldGenerateReceiptOfTransactions() {
+    LineItem  lineItemWithSKUB = new LineItem("B", 30, "Some B Item");
+    shoppingCart.addItem(lineItemWithSKUB);
+    shoppingCart.addItem(lineItemWithSKUB);
+    shoppingCart.addItem(lineItemWithSKUB);
+
+
+    shoppingCart.addItem(lineItem);
+    shoppingCart.addItem(lineItem);
+
+    PricingRule skuAMultipriceRule = new MultiPriceByBundlePriceUnitRule(3, 130, skus, "3 for 130");
+
+    HashSet<String> skuBMultipriceRuleSKUs = new HashSet<>();
+    skuBMultipriceRuleSKUs.add(lineItemWithSKUB.getSku());
+    PricingRule skuBMultipriceRule = new MultiPriceByBundlePriceUnitRule(2, 45, skuBMultipriceRuleSKUs , "2 for 45");
+
+    List<PriceCalculationResult> results = checkoutManager.checkout(shoppingCart, Arrays.asList(skuAMultipriceRule, skuBMultipriceRule));
+
+    Receipt receipt = checkoutManager.generateTransactionReciept(results);
+
+    assertEquals(2, receipt.getItems().size());
+    assertEquals(305.0, receipt.getTotal().doubleValue());
   }
 }
 

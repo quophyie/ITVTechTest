@@ -15,8 +15,8 @@ public class DefaultNoDiscountPricingRule implements PricingRule {
 
   public DefaultNoDiscountPricingRule( Set<String> skus) {
     this.skus = skus;
-
   }
+
   @Override
   public PriceCalculationResult applyRule(ShoppingCartItem shoppingCartItem) {
 
@@ -27,7 +27,7 @@ public class DefaultNoDiscountPricingRule implements PricingRule {
       throw new ShoppingCartException("shopping cart line item cannot be null");
 
     int numberOfItemsToBeDiscounted = 0;
-    int numberOfItemsChargedAtFullPrice = shoppingCartItem.getNumberOfItems();
+    int numberOfItemsChargedAtFullPrice = shoppingCartItem.getQuantity();
 
     BigDecimal total = new BigDecimal(numberOfItemsChargedAtFullPrice * shoppingCartItem.getLineItem().getPrice());
     BigDecimal totalDiscountedItems = new BigDecimal(0);

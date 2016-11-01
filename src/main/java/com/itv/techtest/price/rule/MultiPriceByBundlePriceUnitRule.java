@@ -3,30 +3,28 @@ package com.itv.techtest.price.rule;
 import com.itv.techtest.exception.PricingRuleException;
 import com.itv.techtest.exception.ShoppingCartException;
 import com.itv.techtest.price.result.PriceCalculationResult;
-import com.itv.techtest.item.LineItem;
 import com.itv.techtest.shoppingcart.ShoppingCartItem;
 
 import java.math.BigDecimal;
-import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Represents a discount rule where user provides the number of items and
- * the unit price for those items. For example "items at 140"
+ * the unit price for those items. For example "2 items at 140" where each item costs 100
  */
-public class MultiPricePricingByUnit implements PricingRule {
+public class MultiPriceByBundlePriceUnitRule implements PricingRule {
 
   private int numberOfItemsInMultiUnit;
   private double multiPriceUnitPrice;
   private String description;
   private Set<String> skus;
 
-  public MultiPricePricingByUnit(int numberOfItems, double multiPriceUnitPrice, Set<String> skus, String description) {
+  public MultiPriceByBundlePriceUnitRule(int numberOfItems, double multiPriceUnitPrice, Set<String> skus, String description) {
     this.multiPriceUnitPrice = multiPriceUnitPrice;
     this.numberOfItemsInMultiUnit = numberOfItems;
     this.description = description;
-    this.skus = skus;
-
+    this.skus = skus.stream().map(sku -> sku.toUpperCase()).collect(Collectors.toSet());
   }
 
   public PriceCalculationResult applyRule(ShoppingCartItem shoppingCartItem) {
@@ -38,17 +36,19 @@ public class MultiPricePricingByUnit implements PricingRule {
       throw new ShoppingCartException("shopping cart line item cannot be null");
 
     if (!this.getSkus().contains(shoppingCartItem.getLineItem().getSku()))
-      throw new PricingRuleException(String.format("Pricing Rule `%s` cannot be applied to SKU `%s`", this.getDescription(), shoppingCartItem.getLineItem().getSku()));
+      throw new PricingRuleException(String.format("Pricing Rule `%s` cannot be applied to SKU `%s`.\n" +
+          "Please check the supported SKUs for rule `%s`",
+          this.getDescription(), shoppingCartItem.getLineItem().getSku(), this.getDescription()));
 
-    int numberOfItemsToBeDiscounted = (shoppingCartItem.getNumberOfItems() / this.getNumberOfItemsInMultiUnit()) * this.getNumberOfItemsInMultiUnit();
-    int numberOfItemsChargedAtFullPrice = shoppingCartItem.getNumberOfItems() % this.getNumberOfItemsInMultiUnit();
+    int numberOfItemsToBeDiscounted = (shoppingCartItem.getQuantity() / this.getNumberOfItemsInMultiUnit()) * this.getNumberOfItemsInMultiUnit();
+    int numberOfItemsChargedAtFullPrice = shoppingCartItem.getQuantity() % this.getNumberOfItemsInMultiUnit();
 
     double unitPricePerItemAtFullPrice = shoppingCartItem.getLineItem().getPrice();
 
-    //This the price of numberOfItemsInMultiUnit if it were not discounted
+    //This is the price of numberOfItemsInMultiUnit items if it were not discounted
     double fullPriceMultiUnitWithoutDiscount = unitPricePerItemAtFullPrice * this.getNumberOfItemsInMultiUnit();
 
-    // Get percentage discount to apply to the items to be discounted
+    // Get percentage discount to apply on the items to be discounted
     double discountPercentage =  1 - (this.getMultiPriceUnitPrice()/ fullPriceMultiUnitWithoutDiscount) ;
 
     double  pricePerItemAfterDiscount = unitPricePerItemAtFullPrice  -  (unitPricePerItemAtFullPrice * discountPercentage);
@@ -66,39 +66,6 @@ public class MultiPricePricingByUnit implements PricingRule {
 
     return priceCalculationResult;
   }
-
-  /**
-   *
-   *  public PriceCalculationResult applyRule(ShoppingCartItem shoppingCartItem) {
-
-   if (shoppingCartItem == null)
-   throw new NullPointerException("shopping cart item cannot be null");
-
-   int numberOfLineItemsAffectedByRule =  (int)lineItems.stream().filter(li -> li.getSkus().equalsIgnoreCase(this.getSkus())).count();
-   int numberOfItemsToBeDiscounted = numberOfLineItemsAffectedByRule / this.getNumberOfItemsInMultiUnit();
-   int numberOfItemsChargedAtFullPrice = numberOfLineItemsAffectedByRule % this.getNumberOfItemsInMultiUnit();
-
-   double unitPricePerItemAtFullPrice = lineItems.get(0).getPrice();
-
-   //This the price of numberOfItemsInMultiUnit if it were not discounted
-   double fullPriceMultiUnitWithoutDiscount = unitPricePerItemAtFullPrice * this.getNumberOfItemsInMultiUnit();
-
-   // Get percentage discount to apply to the items to be discounted
-   double discountPercentage =  1 - (this.getMultiPriceUnitPrice()/ fullPriceMultiUnitWithoutDiscount) ;
-
-   double  pricePerItemAfterDiscount = unitPricePerItemAtFullPrice  -  (unitPricePerItemAtFullPrice * discountPercentage);
-
-   double totalDiscountedItems = pricePerItemAfterDiscount * numberOfItemsToBeDiscounted;
-   double totalItemsChargedAtFullPrice = numberOfItemsChargedAtFullPrice *  unitPricePerItemAtFullPrice;
-
-   BigDecimal totalAfterDiscount = new BigDecimal(totalDiscountedItems);
-   totalAfterDiscount.add(new BigDecimal(totalItemsChargedAtFullPrice));
-
-   PriceCalculationResult disountResult = new PriceCalculationResult(numberOfItemsToBeDiscounted, numberOfItemsChargedAtFullPrice, totalAfterDiscount, this.getSkus());
-
-   return disountResult;
-   }
-   */
 
   public int getNumberOfItemsInMultiUnit() {
     return numberOfItemsInMultiUnit;

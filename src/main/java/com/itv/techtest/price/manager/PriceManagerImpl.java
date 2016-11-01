@@ -9,7 +9,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Created by dman on 31/10/2016.
+ * Manages and applies pricing rules
  */
 public class PriceManagerImpl implements PriceManager {
 
@@ -23,11 +23,11 @@ public class PriceManagerImpl implements PriceManager {
     if (shoppingCartItem.getLineItem() == null)
       throw new ShoppingCartException("shopping cart line item cannot be null");
 
-
+     //Apply the supplied rules
     if (rules != null && !rules.isEmpty()) {
-      rules.stream().forEach(rule -> {
-        PriceCalculationResult priceCalculationResult = rule.applyRule(shoppingCartItem);
-        priceCalculationResults.add(priceCalculationResult);
+        rules.stream().forEach(rule -> {
+          PriceCalculationResult priceCalculationResult = rule.applyRule(shoppingCartItem);
+          priceCalculationResults.add(priceCalculationResult);
       });
     }
 

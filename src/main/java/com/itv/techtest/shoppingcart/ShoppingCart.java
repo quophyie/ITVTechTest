@@ -10,15 +10,23 @@ import java.util.Map;
 public interface ShoppingCart {
 
   /**
-   * Adds an item to the basket
+   * Adds an item to the shoppping cart
    * @param item -  The item to be added
    */
   void addItem(LineItem item);
 
   /**
-   * returns all the items in the basket
+   * Removed an item from the cart
+   * @param sku -  The SKU code of the item to be removed
+   */
+  void removeItem(String sku);
+
+  /**
+   * returns all the items in the shopping cart where each Key is the SKU Code
    * @return
    */
   Map<String, ShoppingCartItem> getAllShoppingCartItems();
+
+
 
 }

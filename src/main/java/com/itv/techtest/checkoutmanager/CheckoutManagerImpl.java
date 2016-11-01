@@ -1,5 +1,7 @@
 package com.itv.techtest.checkoutmanager;
 
+import com.itv.techtest.receipt.Receipt;
+import com.itv.techtest.receipt.ReceiptManager;
 import com.itv.techtest.shoppingcart.ShoppingCart;
 import com.itv.techtest.price.manager.PriceManager;
 import com.itv.techtest.price.result.PriceCalculationResult;
@@ -20,9 +22,11 @@ public class CheckoutManagerImpl implements CheckoutManager {
 
 
   private PriceManager pricingManager;
+  private ReceiptManager receiptManager;
 
-  public CheckoutManagerImpl(PriceManager priceManager) {
+  public CheckoutManagerImpl(PriceManager priceManager, ReceiptManager receiptManager) {
     this.pricingManager = priceManager;
+    this.receiptManager = receiptManager;
   }
 
 
@@ -32,13 +36,18 @@ public class CheckoutManagerImpl implements CheckoutManager {
       pricingRules = new ArrayList<>();
 
     List<PriceCalculationResult> priceCalculationResults = new ArrayList<>();
-    priceCalculationResults.addAll(calculateItemsWithPricingRules(shoppingCart, pricingRules));
-    priceCalculationResults.addAll(calculateItemsWithoutPricingRules(shoppingCart, pricingRules));
+    priceCalculationResults.addAll(calculateResultsForItemsWithPricingRules(shoppingCart, pricingRules));
+    priceCalculationResults.addAll(calculateResultsForItemsWithoutPricingRules(shoppingCart, pricingRules));
 
     return priceCalculationResults;
   }
 
-  private  List<PriceCalculationResult> calculateItemsWithPricingRules(ShoppingCart shoppingCart, List<PricingRule> pricingRules) {
+  @Override
+  public Receipt generateTransactionReciept(List<PriceCalculationResult> priceCalculationResultList) {
+    return receiptManager.generateReciept(priceCalculationResultList);
+  }
+
+  private  List<PriceCalculationResult> calculateResultsForItemsWithPricingRules(ShoppingCart shoppingCart, List<PricingRule> pricingRules) {
 
     List<PriceCalculationResult> priceCalculationResults = new ArrayList<>();
     List<String> skusOfItemsWithDiscountRules = shoppingCart.getAllShoppingCartItems()
@@ -47,12 +56,13 @@ public class CheckoutManagerImpl implements CheckoutManager {
         .filter(sku -> pricingRules.stream().filter(pricingRule -> pricingRule.getSkus().contains(sku)).count() > 0)
         .collect(Collectors.toList());
 
-    // Get all shoppingCart items that have a ruke associated with thwn
+    // Get all shoppingCart items that have a rule associated with them
     shoppingCart.getAllShoppingCartItems()
         .entrySet()
         .stream()
         .filter(entry -> skusOfItemsWithDiscountRules.contains(entry.getKey()))
         .forEach(entry -> {
+          // Apply the pricing rule
           List<PricingRule> pricingRulesToApply =  pricingRules.stream().filter(pricingRule -> pricingRule.getSkus().contains(entry.getKey())).collect(Collectors.toList());
           List<PriceCalculationResult> priceCalculationResultList = pricingManager.applyRules(entry.getValue(), pricingRulesToApply);
           priceCalculationResults.addAll(priceCalculationResultList);
@@ -63,7 +73,7 @@ public class CheckoutManagerImpl implements CheckoutManager {
   }
 
 
-  private  List<PriceCalculationResult> calculateItemsWithoutPricingRules(ShoppingCart shoppingCart, List<PricingRule> pricingRules) {
+  private  List<PriceCalculationResult> calculateResultsForItemsWithoutPricingRules(ShoppingCart shoppingCart, List<PricingRule> pricingRules) {
 
     List<PriceCalculationResult> priceCalculationResults = new ArrayList<>();
     Set<String> skusOfItemsWithOutDiscountRules = shoppingCart.getAllShoppingCartItems()
@@ -74,8 +84,8 @@ public class CheckoutManagerImpl implements CheckoutManager {
         .collect(Collectors.toSet());
 
 
-    // Get all shoppingCart items that do not have a pricing rule
-    // These will use the pricing rule that DO NOT apply a discount i.e. the Default
+    // Get all shopping cart items that do not have a pricing rule
+    // These will use the pricing rule that DO NOT apply a discount rule i.e. the Default
     List<ShoppingCartItem> shoppingCartItems = shoppingCart.getAllShoppingCartItems()
         .entrySet()
         .stream()
@@ -83,15 +93,21 @@ public class CheckoutManagerImpl implements CheckoutManager {
         .map(entry -> entry.getValue())
         .collect(Collectors.toList());
 
-    // Apply the default pricing rules
+    // Apply the default pricing rules (i.e. no no discounts pricing rule)
     List<PricingRule> pricingRulesToApply = Arrays.asList(new DefaultNoDiscountPricingRule(skusOfItemsWithOutDiscountRules));
-    shoppingCartItems.stream().forEach(shoppingCartItem ->  {
-      List<PriceCalculationResult> priceCalculationResultList =  pricingManager.applyRules(shoppingCartItem, pricingRulesToApply);
-      priceCalculationResults.addAll(priceCalculationResultList);
-    });
-
+    shoppingCartItems
+        .stream()
+        .forEach(shoppingCartItem -> {
+          List<PriceCalculationResult> priceCalculationResultList = pricingManager.applyRules(shoppingCartItem, pricingRulesToApply);
+          priceCalculationResults.addAll(priceCalculationResultList);
+        });
 
     return priceCalculationResults;
 
   }
+
+
+
+
+
 }
